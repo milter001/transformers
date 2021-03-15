@@ -21,6 +21,7 @@
 | 阅读文件 | 阅读时间 | 阅读人 | 产出形式 | 主题 |
 |-|-|-|-|-|
 | src/transformers/modeling_tf_outputs.py | 2021-03-15至2021-03-22 | milter001 | 详细注释 | transformer输出的各种形式 |
+| src/transformers/trainer.py | 2021-03-15至2021-03-22 | eshaoliu | 详细注释 | transformer训练过程 |
 
 
 
