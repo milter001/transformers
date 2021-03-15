@@ -17,16 +17,10 @@
 
 ### 3、登记表格
 
-| 阅读文件  |  阅读时间 | 阅读人 | 产出形式 | 主题 |
 
-| :--------- | :--: | -----------: | -----------: | -----------: |
-
-| src/transformers/modeling_tf_outputs.py   |  2021-03-15至2021-03-22 |    milter001 | 详细注释 | transformer输出的各种形式 |
-
-
-| Section | Description | Description | Description | Description |
+| 阅读文件 | 阅读时间 | 阅读人 | 产出形式 | 主题 |
 |-|-|-|-|-|
-| [Documentation](https://huggingface.co/transformers/) | Full tutorials | Full tutorials | Full APutorials | Full API tutorials |
+| src/transformers/modeling_tf_outputs.py | 2021-03-15至2021-03-22 | milter001 | 详细注释 | transformer输出的各种形式 |
 
 
 
