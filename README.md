@@ -22,6 +22,8 @@
 |-|-|-|-|-|
 | src/transformers/modeling_tf_outputs.py | 2021-03-15至2021-03-22 | milter001 | 详细注释 | transformer输出的各种形式 |
 | src/transformers/bert/modeling_bert | 2021-03-15至2021-03-22 | eshaoliu | 详细注释 | transformer训练过程 |
+| src/transformers/tokenization*.py| 2021-03-15至2021-03-22 | P小二 | 详细注释 | 分词 |
+
 
 
 
