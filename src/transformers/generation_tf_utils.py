@@ -1087,7 +1087,7 @@ def sample_without_replacement(logits, num_samples):
 
 
 def shape_list(x):
-    """Deal with dynamic shape in tensorflow cleanly."""
+    """返回tensor的shape list， 综合考虑了静态和动态两种情况，nice"""
     static = x.shape.as_list()
     dynamic = tf.shape(x)
     return [dynamic[i] if s is None else s for i, s in enumerate(static)]
