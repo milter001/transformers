@@ -1,18 +1,16 @@
-# coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
-# Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+
+'''
+阅读代码核心关注的问题：各种文本生成的策略实现
+greedy search
+beam search
+top-k
+top-p
+ 这篇博客文章详细介绍了几种不同的文本生成策略，非常值得一看。
+<https://huggingface.co/blog/how-to-generate>`__.
+
+
+
+'''
 
 import numpy as np
 import tensorflow as tf
@@ -31,13 +29,16 @@ class TFGenerationMixin:
 
     def prepare_inputs_for_generation(self, inputs, **kwargs):
         """
+        准备输入
         Implement in subclasses of :class:`~transformers.TFPreTrainedModel` for custom behavior to prepare inputs in
         the generate method.
         """
         return {"input_ids": inputs}
 
     def _use_cache(self, outputs, use_cache):
-        """During generation, decide whether to pass the `past` variable to the next forward pass."""
+        """ 初步理解，past就是缓存的hidden_state，优化transformer的计算用。
+        During generation, decide whether to pass the `past` variable to the next forward pass."""
+
         use_cache = getattr(self.config, "use_cache", False)
         if len(outputs) <= 1 or use_cache is False:
             return False
@@ -71,6 +72,7 @@ class TFGenerationMixin:
         forced_eos_token_id=None,
     ):
         r"""
+
         Generates sequences for models with a language modeling head. The method currently supports greedy decoding,
         beam-search decoding, sampling with temperature, sampling with top-k or nucleus sampling.
 
@@ -82,6 +84,7 @@ class TFGenerationMixin:
         indicated are the default values of those config.
 
         Most of these parameters are explained in more detail in `this blog post
+        这篇博客文章详细介绍了几种不同的文本生成策略，非常值得一看。
         <https://huggingface.co/blog/how-to-generate>`__.
 
         Parameters:
@@ -1130,7 +1133,6 @@ class BeamHypotheses(object):
         If there are enough hypotheses and that none of the hypotheses being generated can become better than the worst
         one in the heap, then we are done with this sentence.
         """
-
         if len(self) < self.num_beams:
             return False
         elif self.early_stopping:

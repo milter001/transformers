@@ -2025,7 +2025,14 @@ class GenerationMixin:
             vocab_size = next_token_scores.shape[-1]
             next_token_scores = next_token_scores.view(batch_size, num_beams * vocab_size)
 
+            """
+            probs的shape （batch_size, num_beams*vocab_size)
+            """
             probs = F.softmax(next_token_scores, dim=-1)
+            """
+            这里是对probs进行采样，这里体现sample
+            为什么要sample 2 * num_beams个token
+            """
             next_tokens = torch.multinomial(probs, num_samples=2 * num_beams)
             next_token_scores = torch.gather(next_token_scores, -1, next_tokens)
 

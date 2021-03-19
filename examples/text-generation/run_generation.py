@@ -155,31 +155,31 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model_type",
-        default=None,
+        default="gpt2",
         type=str,
-        required=True,
+        required=False,
         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
     )
     parser.add_argument(
         "--model_name_or_path",
-        default=None,
+        default="gpt2",
         type=str,
-        required=True,
+        required=False,
         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(MODEL_CLASSES.keys()),
     )
 
-    parser.add_argument("--prompt", type=str, default="")
-    parser.add_argument("--length", type=int, default=20)
+    parser.add_argument("--prompt", type=str, default="I have a dream")
+    parser.add_argument("--length", type=int, default=200)
     parser.add_argument("--stop_token", type=str, default=None, help="Token at which text generation is stopped")
 
     parser.add_argument(
         "--temperature",
         type=float,
-        default=1.0,
+        default=.8,
         help="temperature of 1.0 has no effect, lower tend toward greedy sampling",
     )
     parser.add_argument(
-        "--repetition_penalty", type=float, default=1.0, help="primarily useful for CTRL model; in that case, use 1.2"
+        "--repetition_penalty", type=float, default=1.2, help="primarily useful for CTRL model; in that case, use 1.2"
     )
     parser.add_argument("--k", type=int, default=0)
     parser.add_argument("--p", type=float, default=0.9)
@@ -260,8 +260,9 @@ def main():
         top_k=args.k,
         top_p=args.p,
         repetition_penalty=args.repetition_penalty,
-        do_sample=True,
+        do_sample=False,
         num_return_sequences=args.num_return_sequences,
+        num_beams=2
     )
 
     # Remove the batch dimension when returning multiple sequences
