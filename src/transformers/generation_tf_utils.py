@@ -658,6 +658,10 @@ class TFGenerationMixin:
             if self._use_cache(outputs, use_cache):
                 past = outputs[1]
 
+            """
+            获得next_token_logits后，下面的重复惩罚、温度、敏感词过滤、重复ngram过滤等操作，本质都是在修改next_token_logits这个分布
+            下面阅读的时候请注意体会
+            """
             # repetition penalty (from CTRL paper https://arxiv.org/abs/1909.05858)
             if repetition_penalty != 1.0:
                 next_token_logits_penalties = _create_next_token_logits_penalties(
@@ -766,7 +770,7 @@ class TFGenerationMixin:
             # next batch beam content
             next_batch_beam = []
 
-            # for each sentence
+            # 下面针对每个句子进行处理
             for batch_idx in range(batch_size):
 
                 # if we are done with this sentence
@@ -787,17 +791,20 @@ class TFGenerationMixin:
                 for beam_token_rank, (beam_token_id, beam_token_score) in enumerate(
                     zip(next_tokens[batch_idx], next_scores[batch_idx])
                 ):
-                    # get beam and token IDs
+                    # 在前面，因为每个beam sample了2个token，所以这里需要确定一下，token来自哪个beam
+                    # beam_id就是做这个区分的。
                     beam_id = beam_token_id // vocab_size
                     token_id = beam_token_id % vocab_size
 
                     effective_beam_id = batch_idx * num_beams + beam_id
-                    # add to generated hypotheses if end of sentence or last iteration
+                    # 遇到结束字符，完成一个预测
                     if (eos_token_id is not None) and (token_id.numpy() == eos_token_id):
                         # if beam_token does not belong to top num_beams tokens, it should not be added
                         is_beam_token_worse_than_top_num_beams = beam_token_rank >= num_beams
+                        # 只取前num_beams个，多余的不要
                         if is_beam_token_worse_than_top_num_beams:
                             continue
+                        # 记录完整的一个预测句子
                         generated_hyps[batch_idx].add(
                             tf.identity(input_ids[effective_beam_id]), beam_token_score.numpy()
                         )
@@ -830,6 +837,8 @@ class TFGenerationMixin:
             beam_idx = tf.convert_to_tensor([x[2] for x in next_batch_beam], dtype=tf.int32)
 
             # re-order batch and update current length
+            # beam_idx 已经是排序过的，保证每个句子得分最高的beam始终在最前面
+            # 这里使用的对tensor的row进行重排序的方法也值得借鉴，identify 然后stack
             input_ids = tf.stack([tf.identity(input_ids[x, :]) for x in beam_idx])
             input_ids = tf.concat([input_ids, tf.expand_dims(beam_tokens, 1)], axis=-1)
             cur_len = cur_len + 1
@@ -845,6 +854,7 @@ class TFGenerationMixin:
                 )
 
         # finalize all open beam hypotheses and end to generated hypotheses
+        # 结束所有还没到停止符的beams
         for batch_idx in range(batch_size):
             # Add all open beam hypothesis to generated_hyps
             if done[batch_idx]:
@@ -888,6 +898,7 @@ class TFGenerationMixin:
         sent_lengths = tf.convert_to_tensor(sent_lengths_list, dtype=tf.int32)
 
         # shorter batches are filled with pad_token
+        # 对较短的句子进行填充，以达到最大长度
         if tf.reduce_min(sent_lengths).numpy() != tf.reduce_max(sent_lengths).numpy():
             assert pad_token_id is not None, "`Pad_token_id` has to be defined"
             sent_max_len = min(tf.reduce_max(sent_lengths).numpy() + 1, max_length)
