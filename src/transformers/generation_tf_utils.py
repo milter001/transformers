@@ -123,6 +123,7 @@ class TFGenerationMixin:
                 order to encourage the model to produce longer sequences.
             no_repeat_ngram_size (:obj:`int`, `optional`, defaults to 0):
                 If set to int > 0, all ngrams of that size can only occur once.
+            # 不允许出现的词汇列表
             bad_words_ids(:obj:`List[int]`, `optional`):
                 List of token ids that are not allowed to be generated. In order to get the tokens of the words that
                 should not appear in the generated text, use :obj:`tokenizer.encode(bad_word, add_prefix_space=True)`.
@@ -991,7 +992,7 @@ def calc_banned_ngram_tokens(prev_input_ids, num_hypos, no_repeat_ngram_size, cu
     banned_tokens = [_get_generated_ngrams(hypo_idx) for hypo_idx in range(num_hypos)]
     return banned_tokens
 
-
+# 这里计算不允许生成的词汇。不过根据现在算法，仅仅是阻止产生词汇的最后一个字，可以根据实际自己修改。
 def calc_banned_bad_words_ids(prev_input_ids, bad_words_ids):
     banned_tokens = []
 
