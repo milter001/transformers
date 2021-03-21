@@ -61,7 +61,7 @@ logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "bert-base-uncased"
 _CONFIG_FOR_DOC = "BertConfig"
 _TOKENIZER_FOR_DOC = "BertTokenizer"
-
+#不同的预训练模型
 BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "bert-base-uncased",
     "bert-large-uncased",
@@ -88,7 +88,7 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all BERT models at https://huggingface.co/models?filter=bert
 ]
 
-
+#加载tf的bert权重
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
     """Load tf checkpoints in a pytorch model."""
     try:
@@ -168,19 +168,25 @@ class BertEmbeddings(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+        #词向量
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        #位置向量
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        #segment id对应的向量
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
+        #layerNorm和dropout难道也有预训练好的向量吗？
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
+        #pytorch向模块添加不应视为模型参数的缓冲区
         self.register_buffer("position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)))
+        #position_embedding_type代表是绝对位置编码还是相对位置编码的类型，如果没有设置，则默认使用绝对位置编码
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
-
+    #past_key_values_length是什么意思？是怎样控制position_id的？
     def forward(
         self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None, past_key_values_length=0
     ):
@@ -202,9 +208,12 @@ class BertEmbeddings(nn.Module):
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
         embeddings = inputs_embeds + token_type_embeddings
+        #如果是绝对位置编码，word，token_type和position_embedding会相加，如果不是绝对位置编码，就不加position embedding了，这是为什么？
+        #三个embedding都是可学的
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
+        #出embedding阶段就过了一个layernorm和dropout
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -220,24 +229,31 @@ class BertSelfAttention(nn.Module):
             )
 
         self.num_attention_heads = config.num_attention_heads
+        #将embedding的维度按照头的个数划分
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
+        #attention_head_size代表映射q,k,v矩阵的维度
         self.all_head_size = self.num_attention_heads * self.attention_head_size
-
+        #pytorch的dense，q，k，v用各自独立的权重映射矩阵
         self.query = nn.Linear(config.hidden_size, self.all_head_size)
         self.key = nn.Linear(config.hidden_size, self.all_head_size)
         self.value = nn.Linear(config.hidden_size, self.all_head_size)
-
+        #self attention过后经过dropout
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
+            #这个值的大小是seq_len?
             self.max_position_embeddings = config.max_position_embeddings
+            #w为什么是2*max_position_embeddings-1个distance_embedding
             self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
-
+        #bert还有充当decoder的时候？
         self.is_decoder = config.is_decoder
-
+    #x=query(hidden_states)=>(batch_size,seq_length,hidden_size)*(hidden_size,all_head_size)=(batch_size,seq_length,all_head_size)
     def transpose_for_scores(self, x):
+        #new_x_shape(batch_size,seq_length,attn_heads,attn_head_size)
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(*new_x_shape)
+        #(batch)
+        #(batch_size,attn_heads,seq_length,attn_head_size)
         return x.permute(0, 2, 1, 3)
 
     def forward(
@@ -249,14 +265,16 @@ class BertSelfAttention(nn.Module):
         encoder_attention_mask=None,
         past_key_value=None,
         output_attentions=False,
-    ):
+    )
+        #q,k,v做相似的处理，分别通过各自的线性变换，最终的shape(batch_size,attn_heads,seq_length,attn_head_size)
         mixed_query_layer = self.query(hidden_states)
-
+        #什么是cross attention和self attention的区别是什么？cross attention是解码时候用的？
+        #直译：cross attention的k和v来自encoder，会设置attention mask要使padding token不会被算进去
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
         # such that the encoder's padding tokens are not attended to.
         is_cross_attention = encoder_hidden_states is not None
-
+        #传进来的encoder_hidden_states和past_key_value有什么区别？
         if is_cross_attention and past_key_value is not None:
             # reuse k,v, cross_attentions
             key_layer = past_key_value[0]
@@ -269,6 +287,7 @@ class BertSelfAttention(nn.Module):
         elif past_key_value is not None:
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
+            #把传进来的past_key_value和key，value拼在一起，用于下一步解码
             key_layer = torch.cat([past_key_value[0], key_layer], dim=2)
             value_layer = torch.cat([past_key_value[1], value_layer], dim=2)
         else:
@@ -286,26 +305,54 @@ class BertSelfAttention(nn.Module):
             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
-
+        # q和k內积算相似度，结果shape(batch_size,attn_heads,seq_length,seq_length)
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             seq_length = hidden_states.size()[1]
+            #[[0],[1],[2],..[seq_len-1]]
             position_ids_l = torch.arange(seq_length, dtype=torch.long, device=hidden_states.device).view(-1, 1)
+            #[[0,2,3,...,seq_len-1]]
             position_ids_r = torch.arange(seq_length, dtype=torch.long, device=hidden_states.device).view(1, -1)
+
+            # >>> torch.arange(6).view(1,-1)
+            #tensor([[0, 1, 2, 3, 4, 5]])
+            #>>> l=torch.arange(6).view(-1,1)
+            #>>> r=torch.arange(6).view(1,-1)
+            #>>> l-r
+            #tensor([[ 0, -1, -2, -3, -4, -5],
+            #        [ 1,  0, -1, -2, -3, -4],
+            #        [ 2,  1,  0, -1, -2, -3],
+            #        [ 3,  2,  1,  0, -1, -2],
+            #        [ 4,  3,  2,  1,  0, -1],
+            #        [ 5,  4,  3,  2,  1,  0]])
+            #distance为attention矩阵对应的position矩阵形式
             distance = position_ids_l - position_ids_r
+            #姑且这么认为
+            #>>> distance+6-1
+            #tensor([[ 5,  4,  3,  2,  1,  0],
+            #       [ 6,  5,  4,  3,  2,  1],
+            #       [ 7,  6,  5,  4,  3,  2],
+            #       [ 8,  7,  6,  5,  4,  3],
+            #       [ 9,  8,  7,  6,  5,  4],
+            #       [10,  9,  8,  7,  6,  5]])
+            #(seq_len,seq_len,attn_head_size),将对应位置的编码映射为向量
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
             positional_embedding = positional_embedding.to(dtype=query_layer.dtype)  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
+                #(batch_size,attn_heads,seq_length,attn_head_size)*(seq_len,seq_len,attn_head_size)=>(batch_size,attn_heads,seq_length,seq_length)
+                #这里算一个key的相对位置编码的attention分，咋算的没看懂？再和原始的attention score相加
                 relative_position_scores = torch.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
+                #这里新算了一个query的相对位置编码的attention分，也给加进去
                 relative_position_scores_query = torch.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
                 relative_position_scores_key = torch.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
+        # scaled dot product = dot(q,k)/sqrt(d),将attention矩阵转为正态分布
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
@@ -316,21 +363,25 @@ class BertSelfAttention(nn.Module):
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
+        #(batch_size,attn_heads,seq_length,seq_length)
         attention_probs = self.dropout(attention_probs)
 
         # Mask heads if we want to
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
-
+        #attention_score*value=(batch_size,attn_heads,seq_length,attn_head_size)
         context_layer = torch.matmul(attention_probs, value_layer)
-
+        #给下一层用(batch_size,seq_length,attn_heads,attn_head_size)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
+        #(batch_size,seq_length,all_head_size(即hidden_size))
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        #把所有头的结果重新拼在一起
         context_layer = context_layer.view(*new_context_layer_shape)
 
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
 
         if self.is_decoder:
+            #解码的话是把历史的key_value拼上
             outputs = outputs + (past_key_value,)
         return outputs
 
