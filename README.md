@@ -21,7 +21,7 @@
 | 阅读文件 | 阅读时间 | 阅读人 | 产出形式 | 主题 |
 |-|-|-|-|-|
 | src/transformers/generation*.py | 2021-03-15至2021-03-22 | milter001 | 详细注释 | transformer文本生成的逻辑 |
-| src/transformers/bert/modeling_bert | 2021-03-15至2021-03-22 | eshaoliu | 详细注释 | transformer训练过程 |
+| src/transformers/bert/modeling_bert | 2021-03-15至2021-03-22 | eshaoliu | 详细注释 | multihead_attention |
 | src/transformers/tokenization*.py| 2021-03-15至2021-03-22 | P小二 | 详细注释 | 分词 |
 | exmaples/text-classification/*.py| 2021-03-21至2021-03-31 | berton | 详细注释 | 下游分类任务 |
 
