@@ -265,10 +265,10 @@ class BertSelfAttention(nn.Module):
         encoder_attention_mask=None,
         past_key_value=None,
         output_attentions=False,
-    )
+    ):
         #q,k,v做相似的处理，分别通过各自的线性变换，最终的shape(batch_size,attn_heads,seq_length,attn_head_size)
         mixed_query_layer = self.query(hidden_states)
-        #什么是cross attention和self attention的区别是什么？cross attention是解码时候用的？
+        #cross attention是解码时候用的
         #直译：cross attention的k和v来自encoder，会设置attention mask要使padding token不会被算进去
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
@@ -365,7 +365,7 @@ class BertSelfAttention(nn.Module):
         # seem a bit unusual, but is taken from the original Transformer paper.
         #(batch_size,attn_heads,seq_length,seq_length)
         attention_probs = self.dropout(attention_probs)
-
+        #把头mask掉？
         # Mask heads if we want to
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
@@ -394,9 +394,9 @@ class BertSelfOutput(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        hidden_states = self.dense(hidden_states)#这里没有relu？
+        hidden_states = self.dropout(hidden_states)#这里多了dropout？
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)#add &norm
         return hidden_states
 
 
@@ -406,7 +406,7 @@ class BertAttention(nn.Module):
         self.self = BertSelfAttention(config)
         self.output = BertSelfOutput(config)
         self.pruned_heads = set()
-
+    #砍头Are Sixteen Heads Really Better than One
     def prune_heads(self, heads):
         if len(heads) == 0:
             return
@@ -448,11 +448,12 @@ class BertAttention(nn.Module):
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
-
+#这里应该是FFN dense +激活函数
 class BertIntermediate(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
+        #激活函数
         if isinstance(config.hidden_act, str):
             self.intermediate_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -463,7 +464,7 @@ class BertIntermediate(nn.Module):
         hidden_states = self.intermediate_act_fn(hidden_states)
         return hidden_states
 
-
+#这里的输出多了dropout，没有激活？
 class BertOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -672,7 +673,7 @@ class BertPooler(nn.Module):
         pooled_output = self.activation(pooled_output)
         return pooled_output
 
-
+#bert到预测任务 ffn+layernorm
 class BertPredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -689,12 +690,12 @@ class BertPredictionHeadTransform(nn.Module):
         hidden_states = self.LayerNorm(hidden_states)
         return hidden_states
 
-
+# lm: ffn + layernorm +ffn 最后得到各个token预测的得分
 class BertLMPredictionHead(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.transform = BertPredictionHeadTransform(config)
-
+        #bert 输出的embedding多了一个偏置
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
         self.decoder = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
@@ -709,7 +710,7 @@ class BertLMPredictionHead(nn.Module):
         hidden_states = self.decoder(hidden_states)
         return hidden_states
 
-
+#纯粹mlm任务，输入是整个sequence的output
 class BertOnlyMLMHead(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -719,7 +720,7 @@ class BertOnlyMLMHead(nn.Module):
         prediction_scores = self.predictions(sequence_output)
         return prediction_scores
 
-
+#纯粹nsp任务，用pooled_output接dense二分类
 class BertOnlyNSPHead(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -729,7 +730,7 @@ class BertOnlyNSPHead(nn.Module):
         seq_relationship_score = self.seq_relationship(pooled_output)
         return seq_relationship_score
 
-
+#预训练是2个任务
 class BertPreTrainingHeads(nn.Module):
     def __init__(self, config):
         super().__init__()
