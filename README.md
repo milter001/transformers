@@ -25,7 +25,7 @@
 | src/transformers/tokenization*.py| 2021-03-15至2021-03-22 | P小二 | 详细注释 | 分词 |
 | exmaples/text-classification/*.py| 2021-03-21至2021-03-31 | berton | 详细注释 | 下游分类任务 |
 | src/transformers/bert/modeling_bert.py | 2021-03-22至2021-03-31 | eshaoliu | 详细注释 | bert的FFN以及mlm，nsp训练任务 |
-
+| src/transformers/data/data_collator.py | 2021-04-01至2021-04-07 | eshaoliu | 详细注释 | PTM各种样本mask准备的方式 |
 
 
 
