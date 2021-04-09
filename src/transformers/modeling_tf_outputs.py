@@ -26,13 +26,16 @@ class TFBaseModelOutput(ModelOutput):
     Base class for model's outputs, with potential hidden states and attentions.
 
     Args:
+        # last_hidden_state中last不是指last token，而是last layer
         last_hidden_state (:obj:`tf.Tensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
+        # hidden_states包含了词嵌入和每一个transformer层的隐状态输出
         hidden_states (:obj:`tuple(tf.FloatTensor)`, `optional`, returned when ``output_hidden_states=True`` is passed or when ``config.output_hidden_states=True``):
             Tuple of :obj:`tf.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape :obj:`(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
+        # 包含每一层的多头自注意力值。
         attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_attentions=True`` is passed or when ``config.output_attentions=True``):
             Tuple of :obj:`tf.Tensor` (one for each layer) of shape :obj:`(batch_size, num_heads, sequence_length,
             sequence_length)`.
@@ -54,6 +57,9 @@ class TFBaseModelOutputWithPooling(ModelOutput):
     Args:
         last_hidden_state (:obj:`tf.Tensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
+
+        # token CLS 最后的hidden state，经过一层全连接+tanh激活函数后的值。因为这里的全连接权重是通过next sentence预测任务训练得来
+        # 所以，这个输出一般不能代表input的语义关系。替代方案是对所有token hidden state求平均或者pooling
         pooler_output (:obj:`tf.Tensor` of shape :obj:`(batch_size, hidden_size)`):
             Last layer hidden-state of the first token of the sequence (classification token) further processed by a
             Linear layer and a Tanh activation function. The Linear layer weights are trained from the next sentence

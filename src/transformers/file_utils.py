@@ -1505,6 +1505,8 @@ def to_py_obj(obj):
 
 class ModelOutput(OrderedDict):
     """
+    这个类中使用了dataclass的代码，所以它必须被继承，且子类要加上@dataclass的装饰器
+    对所有transformer模型输出的抽象。继承了OrderedDict，增加了一些便利的方法，以便适应不同的获取输出方式
     Base class for all model outputs as dataclass. Has a ``__getitem__`` that allows indexing by integer or slice (like
     a tuple) or strings (like a dictionary) that will ignore the ``None`` attributes. Otherwise behaves like a regular
     python dictionary.
@@ -1514,9 +1516,9 @@ class ModelOutput(OrderedDict):
         method to convert it to a tuple before.
     """
 
+    # 这个方法是覆写的dataclass的方法，主要是对field做一些检查，同时兼容各个属性分别赋值和通过一个dict统一赋值两种方式。
     def __post_init__(self):
         class_fields = fields(self)
-
         # Safety and consistency checks
         assert len(class_fields), f"{self.__class__.__name__} has no fields."
         assert all(
@@ -1543,8 +1545,8 @@ class ModelOutput(OrderedDict):
                         or not isinstance(element[0], str)
                     ):
                         break
-                    setattr(self, element[0], element[1])
-                    if element[1] is not None:
+                    setattr(self, element[0], element[1]) #这步和下面self[element[0]] = element[1]本质上操作的是一份底层数据
+                    if element[1] is not None:# 只是提供设置两种不同的访问方式
                         self[element[0]] = element[1]
             elif first_field is not None:
                 self[class_fields[0].name] = first_field
@@ -1554,6 +1556,7 @@ class ModelOutput(OrderedDict):
                 if v is not None:
                     self[field.name] = v
 
+    # 下面这些raise Exception的方法，主要是防止数据被错误修改，从而使得该数据类不可变
     def __delitem__(self, *args, **kwargs):
         raise Exception(f"You cannot use ``__delitem__`` on a {self.__class__.__name__} instance.")
 
@@ -1566,6 +1569,7 @@ class ModelOutput(OrderedDict):
     def update(self, *args, **kwargs):
         raise Exception(f"You cannot use ``update`` on a {self.__class__.__name__} instance.")
 
+    # 这里通过改写__getitem__使得self[k]中的k同时支持字符串和数字索引，确实是个好方法。
     def __getitem__(self, k):
         if isinstance(k, str):
             inner_dict = {k: v for (k, v) in self.items()}
